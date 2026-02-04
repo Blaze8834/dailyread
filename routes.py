@@ -1,5 +1,5 @@
 from datetime import datetime
-from zoneinfo import ZoneInfo
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from flask import Blueprint, jsonify, request, session
 from werkzeug.security import check_password_hash, generate_password_hash
@@ -89,8 +89,11 @@ def logout():
 
 @api.get("/play/today")
 def play_today():
-    tz = ZoneInfo("America/New_York")
-    today = datetime.now(tz).strftime("%Y-%m-%d")
+    try:
+        tz = ZoneInfo("America/New_York")
+        today = datetime.now(tz).strftime("%Y-%m-%d")
+    except ZoneInfoNotFoundError:
+        today = datetime.utcnow().strftime("%Y-%m-%d")
     override_name = session.get("override_play")
     if override_name:
         seed = seed_from_name(override_name)

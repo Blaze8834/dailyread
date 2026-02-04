@@ -3,7 +3,7 @@ import math
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Dict, List, Tuple
-from zoneinfo import ZoneInfo
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 OFFENSE_COLOR = "#1d4ed8"
 DEFENSE_COLOR = "#dc2626"
@@ -48,46 +48,73 @@ FORMATIONS = {
 
 FORMATION_TAGS = ["bunch", "x", "nasty"]
 
-COVERAGES = [
-    "0 press coverage",
-    "0 off man",
-    "0 silver shoot pinch",
-    "0 safety blitz",
-    "1 press man",
-    "1 hole",
-    "1 buzz",
-    "1 off man",
-    "1 rat",
-    "1 double",
-    "1 willie bracket",
-    "1 spy",
-    "1 blitz tampa",
+BASE_COVERAGES = [
+    "0",
+    "1",
     "2",
-    "2 high",
-    "2 drop",
-    "2 hard flat",
-    "2 man",
-    "2 cloud",
-    "2 press",
-    "2 lb blitz",
-    "3 cloud",
-    "3 match",
-    "3 cb zone blitz",
-    "3 lb blitz",
-    "3 show 2",
-    "3 show 4",
-    "3 drop",
-    "3 hard",
-    "3 press",
-    "4 drop",
-    "4 quarters",
-    "4 lb blitz",
-    "4 flat",
+    "3",
+    "4",
     "6",
-    "6 show",
     "9",
-    "9 show",
 ]
+
+COVERAGE_MODIFIERS = [
+    "press",
+    "off man",
+    "silver shoot pinch",
+    "safety blitz",
+    "hole",
+    "buzz",
+    "rat",
+    "double",
+    "willie bracket",
+    "spy",
+    "tampa",
+    "high",
+    "drop",
+    "hard flat",
+    "man",
+    "cloud",
+    "lb blitz",
+    "cb zone blitz",
+    "show 2",
+    "show 4",
+    "hard",
+    "quarters",
+    "flat",
+    "match",
+    "show",
+]
+
+COVERAGE_STACKS = [
+    "press",
+    "off man",
+    "spy",
+    "blitz",
+    "show",
+    "cloud",
+    "drop",
+    "hard flat",
+    "match",
+    "quarters",
+]
+
+
+def build_coverages() -> List[str]:
+    coverages = []
+    for base in BASE_COVERAGES:
+        coverages.append(base)
+        for modifier in COVERAGE_MODIFIERS:
+            coverages.append(f"{base} {modifier}")
+        for modifier_a in COVERAGE_STACKS:
+            for modifier_b in COVERAGE_STACKS:
+                if modifier_a == modifier_b:
+                    continue
+                coverages.append(f\"{base} {modifier_a} {modifier_b}\")
+    return sorted(set(coverages))
+
+
+COVERAGES = build_coverages()
 
 
 @dataclass
@@ -113,8 +140,11 @@ class PlayConfig:
 
 
 def seed_for_today() -> int:
-    tz = ZoneInfo("America/New_York")
-    now = datetime.now(tz)
+    try:
+        tz = ZoneInfo("America/New_York")
+        now = datetime.now(tz)
+    except ZoneInfoNotFoundError:
+        now = datetime.utcnow()
     date_key = now.strftime("%Y-%m-%d")
     return int(hashlib.sha256(date_key.encode()).hexdigest(), 16) % (2**32)
 
