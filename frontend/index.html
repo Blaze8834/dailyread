@@ -1,0 +1,223 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Daily Read</title>
+    <link rel="manifest" href="/manifest.json" />
+    <meta name="theme-color" content="#0b5fff" />
+    <style>
+      :root {
+        font-family: "Inter", system-ui, -apple-system, sans-serif;
+        background: #0f172a;
+        color: #e2e8f0;
+      }
+      body {
+        margin: 0;
+        display: flex;
+        flex-direction: column;
+        min-height: 100vh;
+      }
+      header {
+        padding: 16px 24px;
+        background: #111827;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+      header h1 {
+        margin: 0;
+        font-size: 20px;
+      }
+      main {
+        flex: 1;
+        display: grid;
+        grid-template-columns: 1fr 320px;
+        gap: 16px;
+        padding: 16px 24px 24px;
+      }
+      #canvas-wrap {
+        position: relative;
+        background: #0b1220;
+        border-radius: 12px;
+        overflow: hidden;
+        border: 1px solid #1f2937;
+      }
+      canvas {
+        width: 100%;
+        height: 100%;
+        display: block;
+      }
+      #hud {
+        position: absolute;
+        top: 12px;
+        left: 12px;
+        background: rgba(15, 23, 42, 0.85);
+        padding: 8px 12px;
+        border-radius: 8px;
+        font-size: 14px;
+      }
+      #radial-menu {
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+      }
+      .route-button {
+        position: absolute;
+        min-width: 64px;
+        padding: 8px 12px;
+        border-radius: 999px;
+        border: none;
+        cursor: pointer;
+        color: #0f172a;
+        font-weight: 600;
+        pointer-events: auto;
+        box-shadow: 0 8px 24px rgba(15, 23, 42, 0.4);
+      }
+      aside {
+        background: #111827;
+        border-radius: 12px;
+        padding: 16px;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        overflow: auto;
+      }
+      button {
+        padding: 10px 12px;
+        border-radius: 8px;
+        border: none;
+        background: #2563eb;
+        color: white;
+        font-weight: 600;
+        cursor: pointer;
+      }
+      button.secondary {
+        background: #1f2937;
+        color: #e2e8f0;
+      }
+      button.secondary.active {
+        border: 1px solid #60a5fa;
+        color: #bfdbfe;
+      }
+      input,
+      select {
+        background: #0f172a;
+        color: #e2e8f0;
+        border: 1px solid #1f2937;
+        border-radius: 6px;
+        padding: 6px 8px;
+      }
+      .status {
+        font-size: 14px;
+        color: #94a3b8;
+      }
+      .panel {
+        border: 1px solid #1f2937;
+        border-radius: 10px;
+        padding: 12px;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+      .row {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+      }
+      @media (max-width: 900px) {
+        main {
+          grid-template-columns: 1fr;
+        }
+        aside {
+          order: -1;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>Daily Read</h1>
+      <span class="status" id="sync-status">Offline-ready</span>
+    </header>
+    <main>
+      <section id="canvas-wrap">
+        <canvas id="game-canvas" width="900" height="600"></canvas>
+        <div id="hud">
+          <div>Time: <span id="hud-time">0.0</span>s</div>
+          <div>Score: <span id="hud-score">0</span></div>
+          <div>Play: <span id="play-name">Loading...</span></div>
+        </div>
+        <div id="radial-menu"></div>
+      </section>
+      <aside>
+        <section class="panel">
+          <strong>Account</strong>
+          <div id="auth-status" class="status">Not signed in</div>
+          <div class="row">
+            <input id="email" type="email" placeholder="Email" />
+            <input id="password" type="password" placeholder="Password" />
+          </div>
+          <div class="row">
+            <button id="register">Register</button>
+            <button id="login" class="secondary">Login</button>
+            <button id="logout" class="secondary">Logout</button>
+          </div>
+          <button id="google-login" class="secondary">Sign in with Google</button>
+        </section>
+
+        <section class="panel">
+          <strong>Controls</strong>
+          <button id="load-play">Load Daily Puzzle</button>
+          <button id="start-sim">Snap Ball</button>
+          <button id="stop-sim" class="secondary">Stop</button>
+          <div class="status">Pass: press receiver number (1-5).</div>
+          <div class="status">Pre-snap motion: select receiver, use arrow keys.</div>
+        </section>
+
+        <section class="panel">
+          <strong>Formation</strong>
+          <div class="row">
+            <select id="formation"></select>
+            <select id="formation-subset"></select>
+          </div>
+          <select id="formation-tag"></select>
+        </section>
+
+        <section class="panel">
+          <strong>Coverage Guess</strong>
+          <select id="coverage-guess"></select>
+          <button id="submit-attempt" class="secondary">Submit Attempt</button>
+          <div class="status" id="attempt-status">No attempts yet.</div>
+          <div class="status" id="coverage-reveal"></div>
+        </section>
+
+        <section class="panel">
+          <strong>Hot Routes</strong>
+          <div id="route-list"></div>
+        </section>
+
+        <section class="panel">
+          <strong>Settings</strong>
+          <label><input type="checkbox" id="toggle-routes" checked /> Show routes</label>
+          <label><input type="checkbox" id="toggle-labels" checked /> Show labels</label>
+          <label><input type="checkbox" id="toggle-field" checked /> Show field</label>
+          <label><input type="checkbox" id="toggle-contrast" /> High contrast</label>
+        </section>
+
+        <section class="panel" id="admin-panel" style="display:none;">
+          <strong>Admin Override</strong>
+          <input id="override-name" type="text" placeholder="Play name override" />
+          <div class="row">
+            <button id="override-set">Set</button>
+            <button id="override-clear" class="secondary">Clear</button>
+          </div>
+          <div class="status">Override is session-specific.</div>
+        </section>
+
+        <div class="status" id="connection-status"></div>
+      </aside>
+    </main>
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
