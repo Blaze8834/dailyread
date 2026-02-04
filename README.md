@@ -1,20 +1,20 @@
 # dailyread
 
 ## Introduction
-dailyread is a web-based American football play simulator that lets users choose a hot route for the controlled player, run a short tactical simulation, and review the scored outcome. It combines a Python Flask backend with a JavaScript canvas frontend, uses SQLite for storage, and relies on IndexedDB + a service worker to support offline play and syncing. The goal is to make football route concepts approachable while keeping the simulation deterministic and replayable.
+Daily Read is a web-based American football coverage puzzle. Each day at 12:00 AM ET, everyone receives the same defensive look and must call an offensive formation, set hot routes, snap the ball, and throw to a receiver. Attempts are scored from 0–1000 based on read accuracy, route selection, and outcome. The backend serves the daily puzzle and stores attempts, while the frontend renders a full-field simulation with presnap controls and keyboard-based passing.
 
 ## What the app does (beginner-friendly overview)
-- Loads a daily play from the backend (entities, routes, and objectives).
-- Lets the user select a route via a radial menu.
-- Simulates movement, collisions, and zone entry events.
-- Records a timestamped event log and computes a score on both client and server.
-- Queues attempts offline and syncs them when connectivity returns.
+- Loads a daily defensive coverage puzzle from the backend (formation, shell alignment, and routes).
+- Lets the user pick hot routes and formation tags before the snap.
+- Runs a short play window (4–6 seconds) with pass rush and coverage reactions.
+- Records the attempt and scores it from 0–1000, revealing the coverage only after submission.
+- Stores attempt history per user.
 
 ## High-level architecture
 **Backend (Flask + SQLite)**  
-- Stores play JSON and attempt event logs in a local SQLite database.  
-- Serves API endpoints for play loading and attempt submission.  
-- Recomputes the score server-side for integrity.
+- Stores users and attempts in SQLite.  
+- Serves the daily puzzle and admin session overrides.  
+- Recomputes the score server-side and reveals coverage after an attempt.
 
 **Frontend (Vanilla JS + Canvas)**  
 - Renders the play on a `<canvas>`.  
@@ -37,8 +37,8 @@ dailyread is a web-based American football play simulator that lets users choose
 .
 ├── app.py
 ├── models.py
+├── playbook.py
 ├── routes.py
-├── seed_dev_db.py
 ├── dailyread.db (created after seeding)
 ├── frontend
 │   ├── index.html
@@ -46,18 +46,19 @@ dailyread is a web-based American football play simulator that lets users choose
 │   ├── service-worker.js
 │   └── src
 │       ├── canvas.js
+│       ├── catalogs.js
 │       └── main.js
 ```
 
 ## Requirements
 - Python 3.11+
+- Google OAuth credentials (optional but required for admin access)
 
 ## Setup (macOS/Linux)
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
-python seed_dev_db.py
 python app.py
 ```
 
@@ -66,25 +67,54 @@ python app.py
 py -3.11 -m venv .venv
 .\.venv\Scripts\activate
 pip install -r requirements.txt
-python seed_dev_db.py
 python app.py
 ```
 
 Visit http://localhost:5000.
 
+## Configuration
+Create a `.env` file (not committed) with:
+```
+SECRET_KEY=your-secret
+GOOGLE_CLIENT_ID=your-google-client-id
+GOOGLE_CLIENT_SECRET=your-google-client-secret
+ADMIN_EMAILS=jsrinfo88@gmail.com
+```
+
 ## API
 - `GET /api/health` → `{ "status": "ok" }`
 - `GET /api/play/today`
-- `GET /api/attempts?play_id=1`
 - `POST /api/attempts`
+- `GET /api/attempts`
+- `POST /api/admin/override` (admin only)
 
 ## Database
 SQLite is used by default (`dailyread.db`). To switch to Postgres, set `DATABASE_URL` to a valid SQLAlchemy-style URL and adjust `models.py` to use a Postgres driver (e.g. `psycopg`).
 
 ## Notes
-- The client computes a provisional score during play. The server recomputes the score when storing attempts.
+- Coverage names are hidden until after the attempt is submitted.
+- Google OAuth is required for admin access. Standard email/password accounts can sign in but cannot access `/admin`.
 - The service worker caches `/api/play/today` and static assets for offline startup.
-- If the API is unavailable, the frontend will load a built-in sample play for demo purposes.
+- Use the in-app Settings panel for high-contrast and visual toggles.
+
+## Updating your local clone
+From the repo root, run:
+```bash
+git fetch origin
+git pull --rebase
+```
+
+## Deployment
+- **Frontend**: host `/frontend` on GitHub Pages if you want a static demo.
+- **Backend**: deploy Flask to Fly.io for 24/7 availability.
+```
+fly launch
+fly deploy
+```
+You will be prompted to create a Fly.io account and set secrets for OAuth.
+
+## License
+MIT License. See [LICENSE](LICENSE).
 
 ## Tests
 Minimal tests can be added later. The current scaffold focuses on the game loop, API, and offline behavior.

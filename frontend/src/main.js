@@ -1,4 +1,5 @@
-import { SimulationCanvas, computeScore } from "./canvas.js";
+import { SimulationCanvas } from "./canvas.js";
+import { COVERAGES, FORMATIONS, FORMATION_TAGS, ROUTES } from "./catalogs.js";
 
 const canvasEl = document.getElementById("game-canvas");
 const hudTimeEl = document.getElementById("hud-time");
@@ -8,47 +9,68 @@ const syncStatusEl = document.getElementById("sync-status");
 const attemptStatusEl = document.getElementById("attempt-status");
 const connectionStatusEl = document.getElementById("connection-status");
 const radialMenu = document.getElementById("radial-menu");
+const routeListEl = document.getElementById("route-list");
+const coverageGuessEl = document.getElementById("coverage-guess");
+const coverageRevealEl = document.getElementById("coverage-reveal");
+const formationEl = document.getElementById("formation");
+const formationSubsetEl = document.getElementById("formation-subset");
+const formationTagEl = document.getElementById("formation-tag");
 
-const simulation = new SimulationCanvas(canvasEl, hudTimeEl, hudScoreEl);
+const toggleRoutesEl = document.getElementById("toggle-routes");
+const toggleLabelsEl = document.getElementById("toggle-labels");
+const toggleFieldEl = document.getElementById("toggle-field");
+const toggleContrastEl = document.getElementById("toggle-contrast");
+
+const authStatusEl = document.getElementById("auth-status");
+const registerBtn = document.getElementById("register");
+const loginBtn = document.getElementById("login");
+const logoutBtn = document.getElementById("logout");
+const googleLoginBtn = document.getElementById("google-login");
+const emailEl = document.getElementById("email");
+const passwordEl = document.getElementById("password");
+
+const adminPanelEl = document.getElementById("admin-panel");
+const overrideNameEl = document.getElementById("override-name");
+const overrideSetBtn = document.getElementById("override-set");
+const overrideClearBtn = document.getElementById("override-clear");
 
 const loadBtn = document.getElementById("load-play");
 const startBtn = document.getElementById("start-sim");
 const stopBtn = document.getElementById("stop-sim");
 const submitBtn = document.getElementById("submit-attempt");
 
+const simulation = new SimulationCanvas(canvasEl, hudTimeEl, hudScoreEl);
+
 let play = null;
 let longPressTimer = null;
 let lastPress = null;
-const fallbackPlay = {
-  id: 1,
-  name: "Sample Play: Trips Right Slant",
-  canvas: { width: 1200, height: 530 },
-  entities: [
-    { id: "wr1", type: "player", label: "WR1", x: 260, y: 160, radius: 12, color: "#1d4ed8", behavior: "controlled" },
-    { id: "wr2", type: "player", label: "WR2", x: 260, y: 265, radius: 12, color: "#1d4ed8", behavior: "static" },
-    { id: "wr3", type: "player", label: "WR3", x: 260, y: 370, radius: 12, color: "#1d4ed8", behavior: "static" },
-    { id: "qb", type: "player", label: "QB", x: 210, y: 265, radius: 12, color: "#1d4ed8", behavior: "static" },
-    { id: "rb", type: "player", label: "RB", x: 210, y: 330, radius: 11, color: "#1d4ed8", behavior: "static" },
-    { id: "cb1", type: "npc", label: "CB1", x: 340, y: 160, radius: 12, color: "#dc2626", behavior: { type: "follow", target: "wr1", speed: 70 } },
-    { id: "lb", type: "npc", label: "LB", x: 420, y: 265, radius: 13, color: "#dc2626", behavior: { type: "patrol", path: [{ x: 420, y: 220 }, { x: 420, y: 310 }], speed: 40 } },
-    { id: "s1", type: "npc", label: "S", x: 520, y: 200, radius: 13, color: "#dc2626", behavior: "static" },
-    { id: "endzone", type: "target", label: "EZ", x: 1080, y: 265, radius: 55, color: "#22c55e", behavior: "static" },
-  ],
-  routes: [
-    { id: "SLANT", name: "Slant", points: [{ x: 260, y: 160 }, { x: 420, y: 210 }, { x: 640, y: 260 }, { x: 820, y: 265 }], color: "#f59e0b" },
-    { id: "GO", name: "Go", points: [{ x: 260, y: 160 }, { x: 460, y: 140 }, { x: 740, y: 120 }, { x: 1020, y: 100 }], color: "#38bdf8" },
-    { id: "OUT", name: "Out", points: [{ x: 260, y: 160 }, { x: 520, y: 160 }, { x: 740, y: 120 }], color: "#a78bfa" },
-  ],
-  objectives: [
-    { id: "o1", type: "reach_zone", params: { x: 1080, y: 265, radius: 55, time_limit: 12 } },
-    { id: "o2", type: "avoid_collision", params: {} },
-  ],
-};
+let selectedReceiver = null;
+
+const receiverOrder = ["wr1", "wr2", "wr3", "te", "rb"];
 
 loadBtn.addEventListener("click", () => loadPlay());
 startBtn.addEventListener("click", () => simulation.start());
 stopBtn.addEventListener("click", () => simulation.stop());
 submitBtn.addEventListener("click", () => submitAttempt());
+
+registerBtn.addEventListener("click", () => authRequest("/api/auth/register"));
+loginBtn.addEventListener("click", () => authRequest("/api/auth/login"));
+logoutBtn.addEventListener("click", () => authRequest("/api/auth/logout"));
+
+googleLoginBtn.addEventListener("click", () => {
+  window.location.href = "/auth/google";
+});
+
+overrideSetBtn.addEventListener("click", () => setOverride());
+overrideClearBtn.addEventListener("click", () => clearOverride());
+
+formationEl.addEventListener("change", () => updateFormationSubsets());
+formationSubsetEl.addEventListener("change", () => applyFormation());
+formationTagEl.addEventListener("change", () => applyFormation());
+
+[toggleRoutesEl, toggleLabelsEl, toggleFieldEl, toggleContrastEl].forEach((el) => {
+  el.addEventListener("change", () => updateSettings());
+});
 
 canvasEl.addEventListener("contextmenu", (event) => {
   event.preventDefault();
@@ -71,10 +93,50 @@ canvasEl.addEventListener("pointerup", () => {
   }
 });
 
-function openRadialMenu(x, y) {
+canvasEl.addEventListener("click", (event) => {
+  const rect = canvasEl.getBoundingClientRect();
+  const x = event.clientX - rect.left;
+  const y = event.clientY - rect.top;
+  const hit = simulation.entities.find((entity) => {
+    if (entity.type !== "player" || entity.id === "qb") return false;
+    const dist = Math.hypot(entity.x - x, entity.y - y);
+    return dist < entity.radius + 6;
+  });
+  if (hit) {
+    selectedReceiver = hit.id;
+    simulation.setSelectedReceiver(hit.id);
+    renderRouteList();
+  }
+});
+
+window.addEventListener("keydown", (event) => {
   if (!play) return;
+  const key = event.key;
+  if (key >= "1" && key <= "5") {
+    const idx = parseInt(key, 10) - 1;
+    const receiverId = receiverOrder[idx];
+    if (simulation.running) {
+      simulation.triggerPass(receiverId);
+    } else {
+      selectedReceiver = receiverId;
+      simulation.setSelectedReceiver(receiverId);
+      renderRouteList();
+    }
+  }
+  if (!simulation.running && selectedReceiver) {
+    if (event.key === "ArrowUp") simulation.applyMotion(0, -10);
+    if (event.key === "ArrowDown") simulation.applyMotion(0, 10);
+    if (event.key === "ArrowLeft") simulation.applyMotion(-10, 0);
+    if (event.key === "ArrowRight") simulation.applyMotion(10, 0);
+    if (event.key.toLowerCase() === "q") cycleRoute(-1);
+    if (event.key.toLowerCase() === "e") cycleRoute(1);
+  }
+});
+
+function openRadialMenu(x, y) {
+  if (!play || !selectedReceiver) return;
   radialMenu.innerHTML = "";
-  const routes = play.routes || [];
+  const routes = ROUTES;
   const radius = 90;
   const rect = radialMenu.getBoundingClientRect();
   const localX = x - rect.left;
@@ -83,12 +145,12 @@ function openRadialMenu(x, y) {
     const angle = (index / routes.length) * Math.PI * 2 - Math.PI / 2;
     const btn = document.createElement("button");
     btn.className = "route-button";
-    btn.style.background = route.color;
+    btn.style.background = "#38bdf8";
     btn.style.left = `${localX + Math.cos(angle) * radius}px`;
     btn.style.top = `${localY + Math.sin(angle) * radius}px`;
-    btn.textContent = route.name;
+    btn.textContent = route.replace(/_/g, " ");
     btn.addEventListener("click", () => {
-      simulation.setRoute(route.id);
+      setRouteForReceiver(route);
       closeRadialMenu();
     });
     radialMenu.appendChild(btn);
@@ -105,14 +167,39 @@ window.addEventListener("click", (event) => {
   }
 });
 
+function setRouteForReceiver(route) {
+  if (!selectedReceiver) return;
+  simulation.setRoute(selectedReceiver, route.toUpperCase());
+  renderRouteList();
+}
+
+function renderRouteList() {
+  routeListEl.innerHTML = "";
+  ROUTES.forEach((route) => {
+    const row = document.createElement("button");
+    row.type = "button";
+    row.className = "secondary";
+    row.style.marginBottom = "6px";
+    row.textContent = route.replace(/_/g, " ");
+    if (selectedReceiver && simulation.routeSelections[selectedReceiver] === route.toUpperCase()) {
+      row.classList.add("active");
+    }
+    row.addEventListener("click", () => {
+      setRouteForReceiver(route);
+    });
+    routeListEl.appendChild(row);
+  });
+}
+
+function cycleRoute(direction) {
+  const routes = ROUTES;
+  const current = simulation.routeSelections[selectedReceiver] || routes[0].toUpperCase();
+  const idx = routes.findIndex((r) => r.toUpperCase() === current);
+  const next = routes[(idx + direction + routes.length) % routes.length];
+  setRouteForReceiver(next);
+}
+
 async function loadPlay() {
-  try {
-    const response = await fetch("/api/play/today");
-    if (!response.ok) throw new Error("No play available");
-    play = await response.json();
-  } catch (error) {
-    play = fallbackPlay;
-  }
   const response = await fetch("/api/play/today");
   if (!response.ok) {
     playNameEl.textContent = "No play available";
@@ -121,84 +208,183 @@ async function loadPlay() {
   play = await response.json();
   playNameEl.textContent = play.name;
   simulation.setPlay(play);
+  applyReceiverLabels();
+  selectedReceiver = receiverOrder[0];
+  simulation.setSelectedReceiver(selectedReceiver);
+  updateFormationOptions();
+  renderRouteList();
   cacheLastPlay(play);
+  coverageRevealEl.textContent = "";
 }
 
 async function submitAttempt() {
   if (!play) return;
-  const attempt = {
-    play_id: play.id,
-    route_id: simulation.selectedRouteId || play.routes?.[0]?.id,
+  const payload = {
+    play_name: play.name,
+    play_date: play.play_date,
+    route_selections: simulation.routeSelections,
     events: simulation.events,
-    score: computeScore(play, simulation.events),
-    client_id: crypto.randomUUID(),
-    created_at: new Date().toISOString(),
+    coverage_guess: coverageGuessEl.value,
   };
-
-  const queued = await queueAttempt(attempt);
-  attemptStatusEl.textContent = queued
-    ? "Attempt queued for sync."
-    : "Attempt submitted.";
-}
-
-async function queueAttempt(attempt) {
-  if (!navigator.onLine) {
-    await saveAttemptOffline(attempt);
-    updateSyncStatus();
-    return true;
-  }
-
-  try {
-    const response = await fetch("/api/attempts", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(attempt),
-    });
-    if (!response.ok) throw new Error("Failed to submit");
-    updateSyncStatus();
-    return false;
-  } catch (error) {
-    await saveAttemptOffline(attempt);
-    updateSyncStatus();
-    return true;
-  }
-}
-
-async function syncQueuedAttempts() {
-  if (!navigator.onLine) return;
-  const queued = await getQueuedAttempts();
-  for (const attempt of queued) {
-    try {
-      const response = await fetch("/api/attempts", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(attempt),
-      });
-      if (response.ok) {
-        await deleteQueuedAttempt(attempt.client_id);
-      }
-    } catch (error) {
-      break;
-    }
-  }
-  updateSyncStatus();
-}
-
-function updateSyncStatus() {
-  if (!navigator.onLine) {
-    syncStatusEl.textContent = "Offline";
-    syncStatusEl.style.color = "#fbbf24";
+  const response = await fetch("/api/attempts", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!response.ok) {
+    attemptStatusEl.textContent = "Attempt submission failed.";
     return;
   }
-  getQueuedAttempts().then((queued) => {
-    if (queued.length) {
-      syncStatusEl.textContent = `Syncing (${queued.length})`;
-      syncStatusEl.style.color = "#fbbf24";
-    } else {
-      syncStatusEl.textContent = "Synced";
-      syncStatusEl.style.color = "#22c55e";
+  const data = await response.json();
+  attemptStatusEl.textContent = `Score: ${data.score}`;
+  coverageRevealEl.textContent = `Coverage: ${data.coverage}`;
+}
+
+async function authRequest(path) {
+  const payload = { email: emailEl.value, password: passwordEl.value };
+  const response = await fetch(path, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!response.ok) {
+    authStatusEl.textContent = "Auth failed";
+    return;
+  }
+  await loadMe();
+}
+
+async function loadMe() {
+  const response = await fetch("/api/me");
+  if (!response.ok) return;
+  const data = await response.json();
+  if (data.authenticated) {
+    authStatusEl.textContent = `Signed in as ${data.email}`;
+    adminPanelEl.style.display = data.is_admin ? "flex" : "none";
+  } else {
+    authStatusEl.textContent = "Not signed in";
+    adminPanelEl.style.display = "none";
+  }
+}
+
+async function setOverride() {
+  const response = await fetch("/api/admin/override", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ play_name: overrideNameEl.value }),
+  });
+  if (response.ok) loadPlay();
+}
+
+async function clearOverride() {
+  const response = await fetch("/api/admin/override", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ play_name: "" }),
+  });
+  if (response.ok) loadPlay();
+}
+
+function updateFormationOptions() {
+  formationEl.innerHTML = "";
+  Object.keys(FORMATIONS).forEach((formation) => {
+    const option = document.createElement("option");
+    option.value = formation;
+    option.textContent = formation;
+    formationEl.appendChild(option);
+  });
+  formationTagEl.innerHTML = "";
+  FORMATION_TAGS.forEach((tag) => {
+    const option = document.createElement("option");
+    option.value = tag;
+    option.textContent = tag;
+    formationTagEl.appendChild(option);
+  });
+  updateFormationSubsets();
+}
+
+function updateFormationSubsets() {
+  const formation = formationEl.value;
+  formationSubsetEl.innerHTML = "";
+  (FORMATIONS[formation] || []).forEach((subset) => {
+    const option = document.createElement("option");
+    option.value = subset;
+    option.textContent = subset;
+    formationSubsetEl.appendChild(option);
+  });
+  applyFormation();
+}
+
+function applyFormation() {
+  if (!play) return;
+  play.formation = `${formationEl.value} ${formationSubsetEl.value}`;
+  play.formation_tag = formationTagEl.value;
+  const positions = formationLayout(play.formation, play.formation_tag);
+  simulation.entities.forEach((entity) => {
+    if (entity.type !== "player") return;
+    const pos = positions[entity.id];
+    if (!pos) return;
+    entity.x = pos.x;
+    entity.y = pos.y;
+  });
+  simulation.render();
+}
+
+function formationLayout(formation, tag) {
+  const baseY = 360;
+  const isGun = formation.includes("gun");
+  const qbY = isGun ? 420 : 440;
+  const rbY = isGun ? 470 : 480;
+  const positions = {
+    qb: { x: 50, y: qbY },
+    rb: { x: 40, y: rbY },
+    wr1: { x: 60, y: baseY - 120 },
+    wr2: { x: 60, y: baseY - 200 },
+    wr3: { x: 60, y: baseY - 280 },
+    te: { x: 60, y: baseY - 40 },
+  };
+  if (formation.includes("trips")) {
+    positions.wr1 = { x: 60, y: baseY - 140 };
+    positions.wr2 = { x: 60, y: baseY - 210 };
+    positions.wr3 = { x: 60, y: baseY - 280 };
+  }
+  if (tag === "bunch") {
+    positions.wr1 = { x: 80, y: baseY - 200 };
+    positions.wr2 = { x: 90, y: baseY - 220 };
+    positions.wr3 = { x: 100, y: baseY - 180 };
+  }
+  if (tag === "nasty") {
+    positions.wr1 = { x: 60, y: baseY - 180 };
+    positions.wr2 = { x: 60, y: baseY - 240 };
+    positions.wr3 = { x: 60, y: baseY - 300 };
+  }
+  return positions;
+}
+
+function applyReceiverLabels() {
+  const labels = {
+    wr1: "1 WR1",
+    wr2: "2 WR2",
+    wr3: "3 WR3",
+    te: "4 TE",
+    rb: "5 RB",
+    qb: "QB",
+  };
+  simulation.entities.forEach((entity) => {
+    if (labels[entity.id]) {
+      entity.label = labels[entity.id];
     }
   });
+}
+
+function updateSettings() {
+  const nextSettings = {
+    showRoutes: toggleRoutesEl.checked,
+    showLabels: toggleLabelsEl.checked,
+    showField: toggleFieldEl.checked,
+    highContrast: toggleContrastEl.checked,
+  };
+  simulation.setSettings(nextSettings);
 }
 
 function updateConnectionStatus() {
@@ -221,56 +407,26 @@ async function cacheLastPlay(playData) {
   }
 }
 
-function openDb() {
-  return new Promise((resolve, reject) => {
-    const request = indexedDB.open("dailyread", 1);
-    request.onupgradeneeded = () => {
-      const db = request.result;
-      if (!db.objectStoreNames.contains("attempts")) {
-        db.createObjectStore("attempts", { keyPath: "client_id" });
-      }
-    };
-    request.onsuccess = () => resolve(request.result);
-    request.onerror = () => reject(request.error);
+function populateCoverageGuess() {
+  coverageGuessEl.innerHTML = "";
+  COVERAGES.forEach((coverage) => {
+    const option = document.createElement("option");
+    option.value = coverage;
+    option.textContent = coverage;
+    coverageGuessEl.appendChild(option);
   });
 }
-
-async function saveAttemptOffline(attempt) {
-  const db = await openDb();
-  const tx = db.transaction("attempts", "readwrite");
-  tx.objectStore("attempts").put(attempt);
-  return tx.complete;
-}
-
-async function getQueuedAttempts() {
-  const db = await openDb();
-  const tx = db.transaction("attempts", "readonly");
-  const store = tx.objectStore("attempts");
-  return new Promise((resolve, reject) => {
-    const request = store.getAll();
-    request.onsuccess = () => resolve(request.result || []);
-    request.onerror = () => reject(request.error);
-  });
-}
-
-async function deleteQueuedAttempt(clientId) {
-  const db = await openDb();
-  const tx = db.transaction("attempts", "readwrite");
-  tx.objectStore("attempts").delete(clientId);
-  return tx.complete;
-}
-
-window.addEventListener("online", () => {
-  updateConnectionStatus();
-  syncQueuedAttempts();
-});
-window.addEventListener("offline", updateConnectionStatus);
 
 if ("serviceWorker" in navigator) {
   navigator.serviceWorker.register("/service-worker.js");
 }
 
+populateCoverageGuess();
+loadMe();
 loadPlay();
 updateConnectionStatus();
-updateSyncStatus();
-setInterval(syncQueuedAttempts, 10000);
+updateSettings();
+renderRouteList();
+
+window.addEventListener("online", updateConnectionStatus);
+window.addEventListener("offline", updateConnectionStatus);

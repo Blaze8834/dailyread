@@ -7,6 +7,7 @@ const STATIC_ASSETS = [
   "/manifest.json",
   "/src/main.js",
   "/src/canvas.js",
+  "/src/catalogs.js",
   "/icon.svg",
 ];
 

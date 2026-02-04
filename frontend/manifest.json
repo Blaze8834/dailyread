@@ -1,11 +1,11 @@
 {
-  "name": "dailyread",
-  "short_name": "dailyread",
+  "name": "Daily Read",
+  "short_name": "Daily Read",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#0f172a",
   "theme_color": "#0b5fff",
-  "description": "Daily tactical football play simulator.",
+  "description": "Daily Read football coverage puzzle.",
   "icons": [
     {
       "src": "/icon.svg",
