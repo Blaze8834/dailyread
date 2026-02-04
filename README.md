@@ -78,7 +78,7 @@ Create a `.env` file (not committed) with:
 SECRET_KEY=your-secret
 GOOGLE_CLIENT_ID=your-google-client-id
 GOOGLE_CLIENT_SECRET=your-google-client-secret
-ADMIN_EMAILS=jsrinfo88@gmail.com
+ADMIN_EMAILS=your-admin-emails
 ```
 
 ## API
