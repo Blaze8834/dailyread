@@ -201,6 +201,7 @@ export class SimulationCanvas {
     ctx.scale(this.view.scale, this.view.scale);
     ctx.translate(this.view.x, this.view.y);
 
+    drawField(ctx, this.play.canvas.width, this.play.canvas.height);
     ctx.fillStyle = "#0b1220";
     ctx.fillRect(0, 0, this.play.canvas.width, this.play.canvas.height);
 
@@ -220,6 +221,17 @@ export class SimulationCanvas {
       ctx.arc(entity.x, entity.y, entity.radius, 0, Math.PI * 2);
       ctx.fillStyle = entity.color;
       ctx.fill();
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = "#0f172a";
+      ctx.stroke();
+
+      if (entity.label) {
+        ctx.fillStyle = "#f8fafc";
+        ctx.font = "12px sans-serif";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText(entity.label, entity.x, entity.y);
+      }
     });
 
     this.objectives.forEach((objective) => {
@@ -270,6 +282,57 @@ export class SimulationCanvas {
   getControlled() {
     return this.entities.find((e) => e.id === this.controlledId);
   }
+}
+
+function drawField(ctx, width, height) {
+  ctx.fillStyle = "#0f7a3c";
+  ctx.fillRect(0, 0, width, height);
+
+  const endZoneWidth = width * 0.1;
+  ctx.fillStyle = "#0b5fff";
+  ctx.fillRect(0, 0, endZoneWidth, height);
+  ctx.fillStyle = "#dc2626";
+  ctx.fillRect(width - endZoneWidth, 0, endZoneWidth, height);
+
+  ctx.strokeStyle = "#e2e8f0";
+  ctx.lineWidth = 2;
+  ctx.strokeRect(0, 0, width, height);
+
+  const yardCount = 10;
+  for (let i = 1; i < yardCount; i += 1) {
+    const x = (width / yardCount) * i;
+    ctx.beginPath();
+    ctx.moveTo(x, 0);
+    ctx.lineTo(x, height);
+    ctx.strokeStyle = i % 2 === 0 ? "rgba(248, 250, 252, 0.45)" : "rgba(248, 250, 252, 0.25)";
+    ctx.lineWidth = i % 2 === 0 ? 2 : 1;
+    ctx.stroke();
+  }
+
+  const hashGap = height * 0.22;
+  for (let i = 1; i < yardCount; i += 1) {
+    const x = (width / yardCount) * i;
+    drawHashMarks(ctx, x, height, hashGap);
+  }
+
+  ctx.fillStyle = "rgba(248, 250, 252, 0.6)";
+  ctx.font = "18px sans-serif";
+  ctx.textAlign = "center";
+  ctx.fillText("DAILYREAD", endZoneWidth / 2, height / 2);
+  ctx.fillText("DAILYREAD", width - endZoneWidth / 2, height / 2);
+}
+
+function drawHashMarks(ctx, x, height, gap) {
+  const top = height / 2 - gap;
+  const bottom = height / 2 + gap;
+  ctx.strokeStyle = "rgba(248, 250, 252, 0.5)";
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(x, top - 16);
+  ctx.lineTo(x, top + 16);
+  ctx.moveTo(x, bottom - 16);
+  ctx.lineTo(x, bottom + 16);
+  ctx.stroke();
 }
 
 function moveAlongPath(entity, points, speed, delta, loop = false) {
