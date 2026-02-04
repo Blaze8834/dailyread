@@ -113,6 +113,12 @@ async function loadPlay() {
   } catch (error) {
     play = fallbackPlay;
   }
+  const response = await fetch("/api/play/today");
+  if (!response.ok) {
+    playNameEl.textContent = "No play available";
+    return;
+  }
+  play = await response.json();
   playNameEl.textContent = play.name;
   simulation.setPlay(play);
   cacheLastPlay(play);

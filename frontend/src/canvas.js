@@ -202,6 +202,8 @@ export class SimulationCanvas {
     ctx.translate(this.view.x, this.view.y);
 
     drawField(ctx, this.play.canvas.width, this.play.canvas.height);
+    ctx.fillStyle = "#0b1220";
+    ctx.fillRect(0, 0, this.play.canvas.width, this.play.canvas.height);
 
     this.routes.forEach((route) => {
       ctx.beginPath();
