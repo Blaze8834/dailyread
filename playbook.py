@@ -32,6 +32,12 @@ ROUTES = [
     "chair",
     "block",
     "check_release",
+    "fade",
+    "comeback",
+    "dig",
+    "hitch",
+    "whip",
+    "screen",
 ]
 
 PRIMARY_ROUTES = ["post", "sluggo", "corner", "streak", "sail"]
@@ -43,12 +49,13 @@ FORMATIONS = {
     "t": ["tight", "strong", "weak"],
     "i": ["pro", "power", "weak"],
     "pro": ["split", "slot", "tight"],
-    "singleback": ["ace", "trips", "doubles"],
+    "singleback": ["ace", "trips", "doubles", "bunch"],
     "wing": ["right", "left", "stack"],
     "double wing": ["tight", "wide"],
-    "gun": ["trips", "doubles", "bunch", "empty"],
-    "pistol": ["base", "slot", "trips", "empty"],
+    "gun": ["trips", "doubles", "bunch", "empty", "trey"],
+    "pistol": ["base", "slot", "trips", "empty", "strong"],
     "tandem": ["slot", "wide"],
+    "spread": ["doubles", "trips", "empty"],
 }
 
 FORMATION_TAGS = ["bunch", "x", "nasty"]
@@ -170,7 +177,7 @@ def generate_play_name(seed: int) -> PlayConfig:
 
 def formation_layout(formation: str, tag: str) -> Dict[str, Tuple[float, float]]:
     center_x = 450
-    qb_y = 520
+    qb_y = 550
     positions = {
         "qb": (center_x, qb_y),
         "wr1": (center_x - 220, 435),
@@ -341,6 +348,11 @@ def build_play(play_name: str, seed: int, config: PlayConfig) -> Dict[str, any]:
         "objectives": [
             {"id": "o1", "type": "score", "params": {"time_limit": 6}},
         ],
+        "catalogs": {
+            "routes": ROUTES,
+            "formations": FORMATIONS,
+            "formation_tags": FORMATION_TAGS,
+        },
     }
 
 

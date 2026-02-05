@@ -2,6 +2,7 @@ import os
 from urllib.parse import quote_plus
 
 from authlib.integrations.flask_client import OAuth
+from dotenv import load_dotenv
 from flask import Flask, redirect, session, url_for
 
 from models import init_db, get_user_by_email, create_user
@@ -9,6 +10,7 @@ from routes import api
 
 
 def create_app() -> Flask:
+    load_dotenv()
     app = Flask(__name__, static_folder="frontend", static_url_path="")
     app.secret_key = os.environ.get("SECRET_KEY", "dev-secret")
     init_db()

@@ -47,6 +47,10 @@ let selectedReceiver = null;
 
 const receiverOrder = ["wr1", "wr2", "wr3", "te", "rb"];
 
+let routeCatalog = [...ROUTES];
+let formationsCatalog = { ...FORMATIONS };
+let formationTagsCatalog = [...FORMATION_TAGS];
+
 loadBtn.addEventListener("click", () => loadPlay());
 startBtn.addEventListener("click", () => simulation.start());
 stopBtn.addEventListener("click", () => simulation.stop());
@@ -135,7 +139,7 @@ window.addEventListener("keydown", (event) => {
 function openRadialMenu(x, y) {
   if (!play || !selectedReceiver) return;
   radialMenu.innerHTML = "";
-  const routes = ROUTES;
+  const routes = routeCatalog;
   const radius = 90;
   const rect = radialMenu.getBoundingClientRect();
   const localX = x - rect.left;
@@ -168,13 +172,14 @@ window.addEventListener("click", (event) => {
 
 function setRouteForReceiver(route) {
   if (!selectedReceiver) return;
+  if (!routeCatalog.includes(route)) return;
   simulation.setRoute(selectedReceiver, route.toUpperCase());
   renderRouteList();
 }
 
 function renderRouteList() {
   routeListEl.innerHTML = "";
-  ROUTES.forEach((route) => {
+  routeCatalog.forEach((route) => {
     const row = document.createElement("button");
     row.type = "button";
     row.className = "secondary";
@@ -191,7 +196,7 @@ function renderRouteList() {
 }
 
 function cycleRoute(direction) {
-  const routes = ROUTES;
+  const routes = routeCatalog;
   const current = simulation.routeSelections[selectedReceiver] || routes[0].toUpperCase();
   const idx = routes.findIndex((r) => r.toUpperCase() === current);
   const next = routes[(idx + direction + routes.length) % routes.length];
@@ -205,6 +210,9 @@ async function loadPlay() {
     return;
   }
   play = await response.json();
+  routeCatalog = [...(play.catalogs?.routes || ROUTES)];
+  formationsCatalog = { ...(play.catalogs?.formations || FORMATIONS) };
+  formationTagsCatalog = [...(play.catalogs?.formation_tags || FORMATION_TAGS)];
   playNameEl.textContent = play.name;
   simulation.setPlay(play);
   applyReceiverLabels();
@@ -293,14 +301,14 @@ async function clearOverride() {
 
 function updateFormationOptions() {
   formationEl.innerHTML = "";
-  Object.keys(FORMATIONS).forEach((formation) => {
+  Object.keys(formationsCatalog).forEach((formation) => {
     const option = document.createElement("option");
     option.value = formation;
     option.textContent = formation;
     formationEl.appendChild(option);
   });
   formationTagEl.innerHTML = "";
-  FORMATION_TAGS.forEach((tag) => {
+  formationTagsCatalog.forEach((tag) => {
     const option = document.createElement("option");
     option.value = tag;
     option.textContent = tag;
@@ -312,7 +320,7 @@ function updateFormationOptions() {
 function updateFormationSubsets() {
   const formation = formationEl.value;
   formationSubsetEl.innerHTML = "";
-  (FORMATIONS[formation] || []).forEach((subset) => {
+  (formationsCatalog[formation] || []).forEach((subset) => {
     const option = document.createElement("option");
     option.value = subset;
     option.textContent = subset;
@@ -323,7 +331,8 @@ function updateFormationSubsets() {
 
 function applyFormation() {
   if (!play) return;
-  play.formation = `${formationEl.value} ${formationSubsetEl.value}`;
+  const subset = formationSubsetEl.value || (formationsCatalog[formationEl.value] || ["base"])[0];
+  play.formation = `${formationEl.value} ${subset}`;
   play.formation_tag = formationTagEl.value;
   const positions = formationLayout(play.formation, play.formation_tag);
   simulation.entities.forEach((entity) => {
@@ -338,7 +347,7 @@ function applyFormation() {
 
 function formationLayout(formation, tag) {
   const centerX = 450;
-  const qbY = 520;
+  const qbY = 550;
   const positions = {
     qb: { x: centerX, y: qbY },
     wr1: { x: centerX - 220, y: 435 },

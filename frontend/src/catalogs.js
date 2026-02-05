@@ -21,18 +21,25 @@ export const ROUTES = [
   "chair",
   "block",
   "check_release",
+  "fade",
+  "comeback",
+  "dig",
+  "hitch",
+  "whip",
+  "screen",
 ];
 
 export const FORMATIONS = {
   t: ["tight", "strong", "weak"],
   i: ["pro", "power", "weak"],
   pro: ["split", "slot", "tight"],
-  singleback: ["ace", "trips", "doubles"],
+  singleback: ["ace", "trips", "doubles", "bunch"],
   wing: ["right", "left", "stack"],
   "double wing": ["tight", "wide"],
-  gun: ["trips", "doubles", "bunch", "empty"],
-  pistol: ["base", "slot", "trips", "empty"],
+  gun: ["trips", "doubles", "bunch", "empty", "trey"],
+  pistol: ["base", "slot", "trips", "empty", "strong"],
   tandem: ["slot", "wide"],
+  spread: ["doubles", "trips", "empty"],
 };
 
 export const FORMATION_TAGS = ["bunch", "x", "nasty"];
@@ -228,6 +235,40 @@ export function routePoints(route, start) {
         { x, y },
         { x, y: y - 20 },
         { x: x + 40, y: y - 60 },
+      ];
+    case "fade":
+      return [
+        { x, y },
+        { x: x + 35, y: y + up - 70 },
+      ];
+    case "comeback":
+      return [
+        { x, y },
+        { x: x + 20, y: y + up - 110 },
+        { x: x - 40, y: y + up - 70 },
+      ];
+    case "dig":
+      return [
+        { x, y },
+        { x, y: y + up + 10 },
+        { x: x + 110, y: y + up + 10 },
+      ];
+    case "hitch":
+      return [
+        { x, y },
+        { x, y: y + up + 35 },
+      ];
+    case "whip":
+      return [
+        { x, y },
+        { x: x + 45, y: y + up + 10 },
+        { x: x - 35, y: y + up + 5 },
+      ];
+    case "screen":
+      return [
+        { x, y },
+        { x: x + 20, y: y - 15 },
+        { x: x + 70, y: y - 20 },
       ];
     default:
       return [{ x, y }, { x, y: y + up }];
