@@ -14,6 +14,13 @@ export class SimulationCanvas {
     this.entities = [];
     this.routes = [];
     this.routeSelections = {};
+    this.routeRolesByReceiver = {};
+    this.routeRoleColors = {
+      primary: "#ef4444",
+      secondary: "#facc15",
+      motion: "#3b82f6",
+      check_release: "#a855f7",
+    };
     this.selectedReceiver = null;
     this.time = 0;
     this.running = false;
@@ -52,6 +59,8 @@ export class SimulationCanvas {
       _state: { pathIndex: 0, progress: 0, target: null },
     }));
     this.routes = play.routes;
+    this.routeRolesByReceiver = Object.fromEntries((play.base_plan || []).map((item) => [item.receiver_id, item.role]));
+    this.routeRoleColors = { ...this.routeRoleColors, ...(play.route_role_colors || {}) };
     this.routeSelections = {};
     this.selectedReceiver = null;
     this.time = 0;
@@ -206,8 +215,9 @@ export class SimulationCanvas {
           if (idx === 0) ctx.moveTo(point.x, point.y);
           else ctx.lineTo(point.x, point.y);
         });
-        ctx.strokeStyle = route.color;
-        ctx.lineWidth = 2;
+        const role = this.routeRolesByReceiver[entity.id];
+        ctx.strokeStyle = this.routeRoleColors[role] || route.color;
+        ctx.lineWidth = 3;
         ctx.stroke();
       });
     }

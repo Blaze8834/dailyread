@@ -34,6 +34,11 @@ ROUTES = [
     "check_release",
 ]
 
+PRIMARY_ROUTES = ["post", "sluggo", "corner", "streak", "sail"]
+SECONDARY_ROUTES = ["slant", "out", "pivot", "drag", "seam", "curl"]
+MOTION_ROUTES = ["wheel", "flat", "swing_left", "swing_right", "drag"]
+CHECK_RELEASE_ROUTES = ["check_release", "block", "angle", "flat"]
+
 FORMATIONS = {
     "t": ["tight", "strong", "weak"],
     "i": ["pro", "power", "weak"],
@@ -41,8 +46,8 @@ FORMATIONS = {
     "singleback": ["ace", "trips", "doubles"],
     "wing": ["right", "left", "stack"],
     "double wing": ["tight", "wide"],
-    "gun": ["trips", "doubles", "bunch"],
-    "pistol": ["base", "slot", "trips"],
+    "gun": ["trips", "doubles", "bunch", "empty"],
+    "pistol": ["base", "slot", "trips", "empty"],
     "tandem": ["slot", "wide"],
 }
 
@@ -164,72 +169,84 @@ def generate_play_name(seed: int) -> PlayConfig:
 
 
 def formation_layout(formation: str, tag: str) -> Dict[str, Tuple[float, float]]:
-    base_y = 360
-    if "gun" in formation:
-        qb_y = 420
-        rb_y = 470
-    else:
-        qb_y = 440
-        rb_y = 480
-
+    center_x = 450
+    qb_y = 520
     positions = {
-        "qb": (50, qb_y),
-        "rb": (40, rb_y),
-        "wr1": (60, base_y - 120),
-        "wr2": (60, base_y - 200),
-        "wr3": (60, base_y - 280),
-        "te": (60, base_y - 40),
+        "qb": (center_x, qb_y),
+        "wr1": (center_x - 220, 435),
+        "wr2": (center_x, 415),
+        "wr3": (center_x + 220, 435),
+        "te": (center_x + 70, 490),
+        "rb": (center_x - 70, 500),
     }
+
+    is_empty = "empty" in formation
+    if is_empty:
+        positions["rb"] = (center_x + 300, 430)
+
     if "trips" in formation:
-        positions["wr1"] = (60, base_y - 140)
-        positions["wr2"] = (60, base_y - 210)
-        positions["wr3"] = (60, base_y - 280)
+        positions["wr1"] = (center_x + 120, 430)
+        positions["wr2"] = (center_x + 220, 420)
+        positions["wr3"] = (center_x + 320, 410)
     if tag == "bunch":
-        positions["wr1"] = (80, base_y - 200)
-        positions["wr2"] = (90, base_y - 220)
-        positions["wr3"] = (100, base_y - 180)
+        positions["wr1"] = (center_x + 120, 445)
+        positions["wr2"] = (center_x + 145, 430)
+        positions["wr3"] = (center_x + 170, 415)
     if tag == "nasty":
-        positions["wr1"] = (60, base_y - 180)
-        positions["wr2"] = (60, base_y - 240)
-        positions["wr3"] = (60, base_y - 300)
+        positions["wr1"] = (center_x - 120, 450)
+        positions["wr2"] = (center_x - 60, 425)
+        positions["wr3"] = (center_x, 410)
+
+    positions["te"] = (center_x + 70, qb_y - 25)
+    if not is_empty:
+        positions["rb"] = (center_x - 70, qb_y - 10)
     return positions
 
 
-def defense_shell(coverage: str) -> Dict[str, Tuple[float, float]]:
+def defense_shell(coverage: str, offense_positions: Dict[str, Tuple[float, float]]) -> Dict[str, Tuple[float, float]]:
     coverage_num = coverage.split()[0]
-    shell_y = 200
+    shell_y = 185
     if coverage_num in {"0", "1"}:
-        shell_y = 260
+        shell_y = 225
     elif coverage_num in {"2", "3"}:
-        shell_y = 220
+        shell_y = 200
     elif coverage_num in {"4", "6", "9"}:
-        shell_y = 180
+        shell_y = 165
+
+    wr1_x, wr1_y = offense_positions["wr1"]
+    wr2_x, wr2_y = offense_positions["wr2"]
+    wr3_x, wr3_y = offense_positions["wr3"]
+    te_x, te_y = offense_positions["te"]
+    rb_x, rb_y = offense_positions["rb"]
+    qb_x, qb_y = offense_positions["qb"]
 
     defenders = {
-        "cb1": (220, 140),
-        "cb2": (220, 260),
-        "lb1": (200, 260),
-        "lb2": (200, 300),
-        "lb3": (200, 200),
-        "ss": (260, shell_y),
-        "fs": (260, shell_y + 60),
-        "de1": (140, 120),
-        "dt1": (140, 170),
-        "dt2": (140, 220),
-        "de2": (140, 270),
+        "cb1": (wr1_x, max(80, wr1_y - 130)),
+        "cb2": (wr2_x, max(80, wr2_y - 130)),
+        "nb": (wr3_x, max(80, wr3_y - 130)),
+        "lb1": (te_x, max(120, te_y - 120)),
+        "lb2": (qb_x - 40, max(120, qb_y - 150)),
+        "lb3": (rb_x, max(120, rb_y - 130)),
+        "ss": (qb_x - 90, shell_y),
+        "fs": (qb_x + 90, shell_y),
+        "de1": (qb_x - 120, qb_y - 105),
+        "dt1": (qb_x - 40, qb_y - 120),
+        "dt2": (qb_x + 40, qb_y - 120),
+        "de2": (qb_x + 120, qb_y - 105),
     }
     if "press" in coverage:
-        defenders["cb1"] = (140, 170)
-        defenders["cb2"] = (140, 330)
+        defenders["cb1"] = (wr1_x, wr1_y - 30)
+        defenders["cb2"] = (wr2_x, wr2_y - 30)
+        defenders["nb"] = (wr3_x, wr3_y - 30)
     if "blitz" in coverage:
-        defenders["lb1"] = (170, 220)
-        defenders["lb2"] = (170, 280)
+        defenders["lb1"] = (qb_x - 30, qb_y - 80)
+        defenders["lb2"] = (qb_x + 20, qb_y - 85)
     return defenders
 
 
 def build_play(play_name: str, seed: int, config: PlayConfig) -> Dict[str, any]:
     offense_positions = formation_layout(config.formation, config.formation_tag)
-    defense_positions = defense_shell(config.coverage)
+    defense_positions = defense_shell(config.coverage, offense_positions)
 
     entities = []
     for name, (x, y) in offense_positions.items():
@@ -276,6 +293,35 @@ def build_play(play_name: str, seed: int, config: PlayConfig) -> Dict[str, any]:
         for idx, route in enumerate(ROUTES)
     ]
 
+    rng = RNG(seed ^ 0xABCDEF)
+    base_plan = [
+        {
+            "receiver_id": "wr1",
+            "route_id": rng.choice(PRIMARY_ROUTES).upper(),
+            "role": "primary",
+        },
+        {
+            "receiver_id": "wr2",
+            "route_id": rng.choice(SECONDARY_ROUTES).upper().replace(" ", "_"),
+            "role": "secondary",
+        },
+        {
+            "receiver_id": "wr3",
+            "route_id": rng.choice(SECONDARY_ROUTES).upper().replace(" ", "_"),
+            "role": "secondary",
+        },
+        {
+            "receiver_id": "te",
+            "route_id": rng.choice(MOTION_ROUTES).upper().replace(" ", "_"),
+            "role": "motion",
+        },
+        {
+            "receiver_id": "rb",
+            "route_id": rng.choice(CHECK_RELEASE_ROUTES).upper().replace(" ", "_"),
+            "role": "check_release",
+        },
+    ]
+
     return {
         "id": seed,
         "name": play_name,
@@ -285,15 +331,22 @@ def build_play(play_name: str, seed: int, config: PlayConfig) -> Dict[str, any]:
         "coverage": config.coverage,
         "entities": entities,
         "routes": routes,
+        "base_plan": base_plan,
+        "route_role_colors": {
+            "primary": "#ef4444",
+            "secondary": "#facc15",
+            "motion": "#3b82f6",
+            "check_release": "#a855f7",
+        },
         "objectives": [
             {"id": "o1", "type": "score", "params": {"time_limit": 6}},
         ],
     }
 
 
-def score_attempt(events: List[Dict[str, any]], read_correct: bool) -> float:
+def score_attempt(events: List[Dict[str, any]]) -> float:
     score = 0
-    score += 350 if read_correct else 150
+    score += 200
     complete = any(event.get("type") == "complete" for event in events)
     intercepted = any(event.get("type") == "interception" for event in events)
     pressured = any(event.get("type") == "sack" for event in events)

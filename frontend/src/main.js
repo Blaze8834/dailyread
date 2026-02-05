@@ -1,5 +1,5 @@
 import { SimulationCanvas } from "./canvas.js";
-import { COVERAGES, FORMATIONS, FORMATION_TAGS, ROUTES } from "./catalogs.js";
+import { FORMATIONS, FORMATION_TAGS, ROUTES } from "./catalogs.js";
 
 const canvasEl = document.getElementById("game-canvas");
 const hudTimeEl = document.getElementById("hud-time");
@@ -10,7 +10,6 @@ const attemptStatusEl = document.getElementById("attempt-status");
 const connectionStatusEl = document.getElementById("connection-status");
 const radialMenu = document.getElementById("radial-menu");
 const routeListEl = document.getElementById("route-list");
-const coverageGuessEl = document.getElementById("coverage-guess");
 const coverageRevealEl = document.getElementById("coverage-reveal");
 const formationEl = document.getElementById("formation");
 const formationSubsetEl = document.getElementById("formation-subset");
@@ -209,12 +208,20 @@ async function loadPlay() {
   playNameEl.textContent = play.name;
   simulation.setPlay(play);
   applyReceiverLabels();
+  applyBasePlan(play);
   selectedReceiver = receiverOrder[0];
   simulation.setSelectedReceiver(selectedReceiver);
   updateFormationOptions();
   renderRouteList();
   cacheLastPlay(play);
   coverageRevealEl.textContent = "";
+}
+
+function applyBasePlan(currentPlay) {
+  (currentPlay.base_plan || []).forEach((item) => {
+    simulation.routeSelections[item.receiver_id] = item.route_id;
+  });
+  simulation.render();
 }
 
 async function submitAttempt() {
@@ -224,7 +231,6 @@ async function submitAttempt() {
     play_date: play.play_date,
     route_selections: simulation.routeSelections,
     events: simulation.events,
-    coverage_guess: coverageGuessEl.value,
   };
   const response = await fetch("/api/attempts", {
     method: "POST",
@@ -331,33 +337,42 @@ function applyFormation() {
 }
 
 function formationLayout(formation, tag) {
-  const baseY = 360;
-  const isGun = formation.includes("gun");
-  const qbY = isGun ? 420 : 440;
-  const rbY = isGun ? 470 : 480;
+  const centerX = 450;
+  const qbY = 520;
   const positions = {
-    qb: { x: 50, y: qbY },
-    rb: { x: 40, y: rbY },
-    wr1: { x: 60, y: baseY - 120 },
-    wr2: { x: 60, y: baseY - 200 },
-    wr3: { x: 60, y: baseY - 280 },
-    te: { x: 60, y: baseY - 40 },
+    qb: { x: centerX, y: qbY },
+    wr1: { x: centerX - 220, y: 435 },
+    wr2: { x: centerX, y: 415 },
+    wr3: { x: centerX + 220, y: 435 },
+    te: { x: centerX + 70, y: qbY - 25 },
+    rb: { x: centerX - 70, y: qbY - 10 },
   };
+
+  const isEmpty = formation.includes("empty");
+  if (isEmpty) {
+    positions.rb = { x: centerX + 300, y: 430 };
+  }
+
   if (formation.includes("trips")) {
-    positions.wr1 = { x: 60, y: baseY - 140 };
-    positions.wr2 = { x: 60, y: baseY - 210 };
-    positions.wr3 = { x: 60, y: baseY - 280 };
+    positions.wr1 = { x: centerX + 120, y: 430 };
+    positions.wr2 = { x: centerX + 220, y: 420 };
+    positions.wr3 = { x: centerX + 320, y: 410 };
   }
   if (tag === "bunch") {
-    positions.wr1 = { x: 80, y: baseY - 200 };
-    positions.wr2 = { x: 90, y: baseY - 220 };
-    positions.wr3 = { x: 100, y: baseY - 180 };
+    positions.wr1 = { x: centerX + 120, y: 445 };
+    positions.wr2 = { x: centerX + 145, y: 430 };
+    positions.wr3 = { x: centerX + 170, y: 415 };
   }
   if (tag === "nasty") {
-    positions.wr1 = { x: 60, y: baseY - 180 };
-    positions.wr2 = { x: 60, y: baseY - 240 };
-    positions.wr3 = { x: 60, y: baseY - 300 };
+    positions.wr1 = { x: centerX - 120, y: 450 };
+    positions.wr2 = { x: centerX - 60, y: 425 };
+    positions.wr3 = { x: centerX, y: 410 };
   }
+  positions.te = { x: centerX + 70, y: qbY - 25 };
+  if (!isEmpty) {
+    positions.rb = { x: centerX - 70, y: qbY - 10 };
+  }
+
   return positions;
 }
 
@@ -407,21 +422,10 @@ async function cacheLastPlay(playData) {
   }
 }
 
-function populateCoverageGuess() {
-  coverageGuessEl.innerHTML = "";
-  COVERAGES.forEach((coverage) => {
-    const option = document.createElement("option");
-    option.value = coverage;
-    option.textContent = coverage;
-    coverageGuessEl.appendChild(option);
-  });
-}
-
 if ("serviceWorker" in navigator) {
   navigator.serviceWorker.register("/service-worker.js");
 }
 
-populateCoverageGuess();
 loadMe();
 loadPlay();
 updateConnectionStatus();

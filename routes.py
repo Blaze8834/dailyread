@@ -111,7 +111,7 @@ def play_today():
 @api.post("/attempts")
 def attempts_create():
     payload = request.get_json(silent=True) or {}
-    required = {"play_name", "play_date", "route_selections", "events", "coverage_guess"}
+    required = {"play_name", "play_date", "route_selections", "events"}
     missing = required - payload.keys()
     if missing:
         return jsonify({"error": f"Missing fields: {', '.join(sorted(missing))}"}), 400
@@ -120,14 +120,12 @@ def attempts_create():
     play_date = payload["play_date"]
     route_selections = payload["route_selections"]
     events = payload["events"]
-    coverage_guess = payload["coverage_guess"]
 
     seed = seed_from_name(play_name)
     config = generate_play_name(seed)
     config.name = play_name
     coverage_name = config.coverage
-    read_correct = coverage_guess.strip().lower() == coverage_name.lower()
-    score = score_attempt(events, read_correct)
+    score = score_attempt(events)
 
     user = current_user()
     stored = store_attempt(

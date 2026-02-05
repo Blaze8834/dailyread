@@ -1,4 +1,5 @@
 import os
+from urllib.parse import quote_plus
 
 from authlib.integrations.flask_client import OAuth
 from flask import Flask, redirect, session, url_for
@@ -14,13 +15,13 @@ def create_app() -> Flask:
     app.register_blueprint(api)
 
     oauth = OAuth(app)
+    google_client_id = os.environ.get("GOOGLE_CLIENT_ID")
+    google_client_secret = os.environ.get("GOOGLE_CLIENT_SECRET")
     google = oauth.register(
         name="google",
-        client_id=os.environ.get("GOOGLE_CLIENT_ID"),
-        client_secret=os.environ.get("GOOGLE_CLIENT_SECRET"),
-        access_token_url="https://oauth2.googleapis.com/token",
-        authorize_url="https://accounts.google.com/o/oauth2/v2/auth",
-        api_base_url="https://www.googleapis.com/oauth2/v2/",
+        client_id=google_client_id,
+        client_secret=google_client_secret,
+        server_metadata_url="https://accounts.google.com/.well-known/openid-configuration",
         client_kwargs={"scope": "openid email profile"},
     )
 
@@ -38,16 +39,25 @@ def create_app() -> Flask:
 
     @app.get("/auth/google")
     def auth_google():
+        if not google_client_id or not google_client_secret:
+            return redirect(f"/?auth_error={quote_plus('Google OAuth is not configured on the server')}")
         redirect_uri = url_for("auth_google_callback", _external=True)
         return google.authorize_redirect(redirect_uri)
 
     @app.get("/auth/google/callback")
     def auth_google_callback():
-        token = google.authorize_access_token()
-        user_info = google.get("userinfo").json()
+        try:
+            token = google.authorize_access_token()
+        except Exception as exc:
+            message = f"Google login failed: {exc}"
+            return redirect(f"/?auth_error={quote_plus(message)}")
+
+        user_info = token.get("userinfo")
+        if not user_info:
+            user_info = google.get("userinfo").json()
         email = user_info.get("email")
         if not email:
-            return redirect("/")
+            return redirect(f"/?auth_error={quote_plus('Google account email was not returned')}")
         user = get_user_by_email(email)
         if not user:
             user_id = create_user(email, None)

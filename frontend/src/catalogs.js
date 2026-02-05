@@ -30,8 +30,8 @@ export const FORMATIONS = {
   singleback: ["ace", "trips", "doubles"],
   wing: ["right", "left", "stack"],
   "double wing": ["tight", "wide"],
-  gun: ["trips", "doubles", "bunch"],
-  pistol: ["base", "slot", "trips"],
+  gun: ["trips", "doubles", "bunch", "empty"],
+  pistol: ["base", "slot", "trips", "empty"],
   tandem: ["slot", "wide"],
 };
 
