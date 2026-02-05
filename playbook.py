@@ -110,7 +110,7 @@ def build_coverages() -> List[str]:
             for modifier_b in COVERAGE_STACKS:
                 if modifier_a == modifier_b:
                     continue
-                coverages.append(f\"{base} {modifier_a} {modifier_b}\")
+                coverages.append(f"{base} {modifier_a} {modifier_b}")
     return sorted(set(coverages))
 
 
